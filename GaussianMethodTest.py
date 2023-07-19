@@ -21,9 +21,9 @@ import matplotlib.gridspec as gridspec
 
 #%% DECLARE GLOBAL VARIABLES
 
-SIZE = 400
+SIZE = 2000
 NUM_EXPOSURES = 0
-TYPE_RUN = 2
+TYPE_RUN = 3
 
 #%% A METHOD THAT GENERATES A SPECKLE PATTERN AND DOES NOT BLUR THE MATRIX
 
@@ -76,10 +76,8 @@ elif TYPE_RUN == 2: # SEE WHAT HAPPENS WITH MULTIPLE SPECKLE (wavey) EXPOSURES
         speckleBoi = speckleBoi + generateSpeckleLines()
     intensityBoi = np.square(np.abs(speckleBoi))
 elif TYPE_RUN == 3: # do it with images
-    grid_im = "/Users/zoeworrall/Desktop/Mudd/2023_2/research/gridwall.png"
-    
     # Read and process image
-    image = plt.imread(grid_im)
+    image = plt.imread("PATH_TO_gridwall.png")
     image = image[:, :, :3].mean(axis=2)  # Convert to grayscale
     
     plt.set_cmap("gray")
@@ -87,85 +85,77 @@ elif TYPE_RUN == 3: # do it with images
     intensityBoi = image
 
 
+
 #%% GRAPH FFT OF THE CONTRAST PATTERN
 
-fig2, ax2 = plt.subplots(ncols=2, nrows=1)
+fig2, ax2 = plt.subplots(ncols=2, nrows=2)
+
+# taken from https://stackoverflow.com/questions/32766162/set-two-matplotlib-imshow-plots-to-have-the-same-color-map-scale
+combined_data = np.append(np.abs(intensityBoi), np.abs(ift))
+#Get the min and max of all your data
+_min, _max = np.amin(combined_data), np.amax(combined_data)
 
 
-ax2 = plt.subplot(121)
+# GRAPH FIRST PLOT: ORIGINAL LSCI PATTERN
+
+ax2 = plt.subplot(221)
 # Calculate Fourier transform of grating
-
-plt.imshow(intensityBoi)
-
+plt.imshow(intensityBoi, vmin = _min, vmax = _max)
 x = np.arange(-500, 501, 1)
-
 plt.title("Original LSCI Pattern")
 plt.xlabel("x")
 plt.ylabel("y")
+
+
+# GRAPH SECOND PLOT: FOURIER TRANSFORM OF THE ORIGINAL PATTERN
+ax2 = plt.subplot(222)
+
 plt.set_cmap("jet")
-plt.colorbar()
-
-
-# FOURIER TRANSFORM
-
-ax2 = plt.subplot(122)
-
 ft = ifftshift(intensityBoi)
 ft = fft2(ft)
 ft = fftshift(ft)
-
 ft_new = ft
-
-
 plt.title("Fourier Transform W/O Aperture")
 plt.xlabel("k_{x}")
 plt.ylabel("k_{y}")
-
-
-import matplotlib.colors as colors
-
+four_min, four_max = np.amin(np.log(np.abs(ft))), np.amax(np.log(np.abs(ft)))
 # logNorm plots the log by itself; no change of data necessary
-plt.imshow(np.abs(ft_new)**2, norm=colors.LogNorm())
+plt.imshow(np.log(np.abs(ft)), vmin = four_min, vmax = four_max) #norm=colors.LogNorm())
 
-plt.show()
-
-
-#%% FOURIER TRANSFORM WITH APERTURE
-
-fig3, ax3 = plt.subplots(ncols=2, nrows=1)
-
+# GRAPH FOURTH PLOT: FOURIER TRANSFORM WITH APERTURE
 halfx = len(ft_new)/2
 halfy = len(ft_new[0])/2
-
 WAVELENGTH = min(halfx, halfy) * 0.1667/2      # 50.0 worked for 300 x 300; do 1/6 for now # (nm)
 RADIUS = 0.5  * WAVELENGTH
-
-
+RADIUS = 3 * RADIUS # added to make it less blurry
 for i in range(len(ft_new)):
     for j in range(len(ft_new[0])):
-        if (np.sqrt(np.square(halfx-i) + np.square(halfy-j)) > RADIUS):
+        dist = np.sqrt( np.square(halfx-i) + np.square(halfy-j))
+        if (dist >= RADIUS):
             ft_new[i][j] = 0
-
-ax3 = plt.subplot(122)
+ax2 = plt.subplot(224)
 plt.title("Filtered FFT")
 plt.xlabel("k_{x}")
 plt.ylabel("k_{y}")
-plt.imshow(np.log(np.abs(ft_new)))
+plt.imshow(np.log(np.abs(ft_new)), vmin = four_min, vmax = four_max)
 
-
-# INVERT FOURIER TRANSFORM TO FIND BLURRED ORIGINAL IMAGE
-
+# GRAPH THIRD PLOT: INVERT FOURIER TRANSFORM TO FIND BLURRED ORIGINAL IMAGE
 # Calculate Fourier transform of grating
-
 ift = fftshift(ft_new)
 ift = ifft2(ift)
 ift = ifftshift(ift)
-
-ax3 = plt.subplot(121)
+ax2 = plt.subplot(223)
 plt.title("LPF LSCI Pattern")
 plt.xlabel("x")
 plt.ylabel("y")
-plt.imshow(np.abs(ift))
+im = plt.imshow(np.abs(ift), vmin = _min, vmax = _max)
+
+# DISPLAY
+# done based on https://stackoverflow.com/questions/13784201/how-to-have-one-colorbar-for-all-subplots
+fig2.subplots_adjust(right=0.8)
+cbar_ax = fig2.add_axes([0.85, 0.15, 0.05, 0.7])
+fig2.colorbar(im, cax = cbar_ax)
+plt.show()
 
 
 #%% SIGNAL GRAPHING
@@ -297,9 +287,6 @@ plt.figtext(0.35, 0.75, x0_statement)
 plt.figtext(0.35, 0.8, sigma_statement)
 plt.figtext(0.35, 0.85, b_statement)
 
-plt.show()
-
-
 ### graph the low-pass filter's Gaussian fit
 
 ax5 = plt.subplot(122)
@@ -321,223 +308,3 @@ plt.figtext(0.75, 0.8, sigma_statement)
 plt.figtext(0.75, 0.85, b_statement)
 
 plt.show()
-
-
-#%% COMPUTE USING FOURIER TRANSFORMS
-
-
-# read about setting up for the speckle image
-    # adjusting aperture
-    # take survey of LSCI I've looked up; Confluence page of their setups
-
-
-#  f*g=F[F^_(nu)G(nu)] ** F^_ means complex conjugate
-fig4, (ax5) = plt.subplots(1, 1, figsize=(6, 15))
-
-def padArr(arr, val):
-    # convert into numpy arrays
-    arrBoi = np.asarray(arr)
-    fluffBoi = [[val] * len(arrBoi)] * len(arrBoi[0])
-    fluff = np.asarray(fluffBoi)
-    
-    # create matrix with padding to allow for best cross-correlation
-    fluffMat = np.concatenate((fluff, fluff, fluff), axis=1)
-    newArr = np.concatenate((fluff, arrBoi, fluff), axis=1)
-    newArr = np.concatenate((fluffMat, newArr, fluffMat), axis=0)
-    
-    return newArr
-
-
-def cross_correlate_same(arr):
-    
-    padded = padArr(arr, 0)
-    newArr = np.array()
-    
-    initIndex_x = len(padded)/3 - 1
-    initIndex_y = len(padded[0])/3 - 1
-    
-    ft_x = len(padded)/3
-    st_x = len(padded)/3 * 2
-    
-    ft_y = len(padded[0])/3
-    st_y = len(padded[0])/3 * 2
-    
-    # work through every row and column in padded that 
-        # corresponds to the inital values we had
-    for r in range(len(padded)/3):
-        for c in range(len(padded[0])/3):
-            newArr[r][c] = sum(( arr[initIndex_x][initIndex_y] * arr[i+r][j+c] for j in range(ft_y, st_y) for i in ange(ft_x, st_x) ) )
-
-    return newArr
-
-
-spk = np.abs(speckleBoi)
-print(spk)
-ax5.imshow(cross_correlate_same(spk), cmap='jet')
-
-
-
-
-#%%
-    
-    
-
-# https://stackoverflow.com/questions/31543775/how-to-perform-cubic-spline-interpolation-in-python
-def f(x):
-    x_points = np.asarray(range(len(org_GaussianPoints)))
-    y_points = np.conjugate(org_GaussianPoints)
-    
-    tck = scipy.interpolate.splrep(x_points, y_points)
-    return scipy.interpolate.splev(x, tck)
-
-F_nu = scipy.integrate.quad(f, -np.inf, np.inf)
-
-def g(x):
-    x_points = np.asarray(range(len(org_GaussianPoints)))
-    y_points = org_GaussianPoints
-    
-    tck = scipy.interpolate.splrep(x_points, y_points)
-    return scipy.interpolate.splev(x, tck)
-
-G = scipy.integrate.quad(f, -np.inf, np.inf)
-
-fStarG = F_nu[0] * G[0]
-
-cross_corr = fft(fStarG)
-
-plt.plot(cross_corr)
-
-
-#%%
-
-# for future reference: https://ieeexplore.ieee.org/abstract/document/8886444
-    # S=2.44λ(1+M)f/#
-    #   λ is the illumination wavelength
-    #   M is the imaging system magnification
-    #   f/# is the camera lens aperture
-
-
-
-#%%
-
-## autocorrelation notes
-# f(t) * f(t)
-
-# convolution
-# (f*g)(t) = integral(f(tau) * g(t-tau) * d_tau) for neg_inf to infinity
-
-# speckle pattern is a random pattern
-# correlation is 
-
-# convolution vs cross-correlation; cross-correlation doesn't flip g(tau)
-    # conv -> g(t-tau) :: cross-corr -> g(t + tau)
-    # for cross-corr, if complex numbers u take the abs(?)
-
-# flip the g(tau): why? idk man
-
-# if we have two functions that are very correlated with each other, 
-    # expect wide cross-correlated function
-    
-# if two functions that are very uncorrelated, we expect very narrow 
-    # cross correlated function
-    # for randomly generated LCSI, we expect small
-    # for bigger speckles, we expect higher correlation
-
-# this is how we measure speckle size:
-    # take autocorrelation (correlation of pattern with itself)
-    # np and scipy have cross correlation, check what happens at edges
-    
-    
-# cross correlation of speckle pattern should be sharp at middle
-# if we blur it, cross correlation should get bigger
-    # cut cross-correlation; should look gaussian; full width half max is xyz
-    # take pattern, compute cross correlation, and figure out how large the pixel is
-    # you want at least Nyquist; want speckle size to be at least two pixels
-    
-# cross correlation theorem; cross calc by taking fourier transforms and multiplying
-# together, and then taking fourier transform again
-
-#%%
-# Low pass filter speckle
-
-from scipy.fftpack import fft2, ifft2, fftshift, ifftshift
-
-#%% DEFINE A FUNCTION THAT BLURS A 2X2 MATRIX TO A 5X5
-
-# A function that generates/blurs four corners of a matrix and expands it from 1x1 to 5x5
-    # takes the four corners of the square and makes a matrix that blends them together
-    # a _ _ _ b
-    # _ _ _ _ _
-    # _ _ _ _ _
-    # _ _ _ _ _
-    # c _ _ _ d
-    #    ^^ fills in the "_" tiles
-def makeMat(a, b, c, d):
-    mat = np.random.randn(5, 5)
-    for i in range(5):
-        mat[0, i] = a * (4-i)/4 + b * i/4
-        mat[i, 0] = a * (4-i)/4 + c * i/4
-        mat[4, i] = c * (4-i)/4 + d * i/4
-        mat[i, 4] = b * (4-i)/4 + d * i/4
-    for i in range(3):
-        mat[1, i+1] = mat[1, 0] * (4-(i+1))/4 + mat[1, 4] * (i+1)/4
-        mat[2, i+1] = mat[2, 0] * (4-(i+1))/4 + mat[2, 4] * (i+1)/4
-        mat[3, i+1] = mat[3, 0] * (4-(i+1))/4 + mat[3, 4] * (i+1)/4
-    mat[2, 2] = (mat[1, 2] + mat[2, 1] + mat[3, 2] + mat[2, 3]) / 4
-    return mat
-
-
-#%% A METHOD THAT GENERATES A SPECKLE PATTERN AND RETURNS THE SPECKLE PATTERN MATRIX
-def generateSpeckle():
-    
-    #% GENERATE THE REAL AND IMAGINARY MATRICES
-    my_matrixA = abs(np.random.randn(SIZE, SIZE))
-    my_matrixB = abs(np.random.randn(SIZE, SIZE))
-    
-    # matrices to help combine all the values in the matrices together
-    part_mat = []
-    col_mat = []
-
-    # make them the right size beforehand
-    n_matA = [[0] * (SIZE*5-5) for i in range(SIZE*5-5)]
-    n_matB = [[0] * (SIZE*5-5) for i in range(SIZE*5-5)]
-
-    # n_matA is real, n_matB is imaginary
-    meanInt = 0
-
-    #% BLUR THE PIXELS TOGETHER
-    # adjust the pixels within the matrix
-    for r in range(SIZE-1):
-        for c in range(SIZE-1):
-            part_matA = makeMat(my_matrixA[r, c], my_matrixA[r, c+1], my_matrixA[r+1, c], my_matrixA[r+1, c+1])
-            part_matB = makeMat(my_matrixB[r, c], my_matrixB[r, c+1], my_matrixB[r+1, c], my_matrixB[r+1, c+1])
-
-            for i in range(5):
-                for j in range(5):
-                    rNew = int(r*5+i); cNew = int(c*5+j)
-                    n_matA[rNew][cNew] = part_matA[i, j]
-                    n_matB[rNew][cNew] = part_matB[i, j]
-                    meanInt = meanInt + (n_matA[rNew][cNew]**2 + n_matB[rNew][cNew]**2)
-
-    #% MAKE THE SPECKLE PATTERN
-    speckle = my_matrixA + 1j*my_matrixB
-    
-    return speckle
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
