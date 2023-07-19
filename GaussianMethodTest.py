@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
 
-#%% DECLARE GLOBAL VARIABLES :D
+#%% DECLARE GLOBAL VARIABLES :D :D
 
 SIZE = 2000
 NUM_EXPOSURES = 0
