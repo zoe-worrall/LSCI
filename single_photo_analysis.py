@@ -34,12 +34,20 @@ import matplotlib.gridspec as gridspec
 SIZE = 2000
 NUM_EXPOSURES = 0
 
-image = plt.imread("/Users/zworrall/Downloads/open_ap.bmp", 0)
+image = plt.imread("/Users/zworrall/Downloads/smallest_ap.bmp", 0)
 plt.set_cmap("gray")
 
 intensityBoi = image
 intensityBoi = np.asarray(intensityBoi)
 
+#%% GRAPH INTENSITY (PDF -- PROBABILITY DENSITY FUNCTION)
+
+fig, ax = plt.subplots(ncols=1, nrows=1)
+
+N_bins = 100
+int_hist, int_bin_edges = np.histogram(intensityBoi, bins=N_bins)
+ax.plot(int_bin_edges[:-1], int_hist)
+ax.set_title("Intensity Histogram of Laser Speckle", fontsize = 8)
 
 #%% GRAPH FFT OF THE CONTRAST PATTERN
 
@@ -99,9 +107,39 @@ fig2.colorbar(im, cax = cbar_ax)
 
 plt.show()
 
-# note: can't graph phase, amplitude, intensity since we only have intensity in
-    # the photo, not the phase -- not starting with an electric field
-    
+
+#%% CALCULATE SPECKLE CONTRAST
+
+window = photo_array[:][:]
+
+w_dev = np.std(window)
+w_meanInt = np.mean(window)
+w_speckle_contrast = w_dev / w_meanInt
+print(w_speckle_contrast)
+
+SPECKLE_SQUARE = 7
+
+pArr = np.asarray(intensityBoi)
+contrast_array = [ [0]*(len(intensityBoi[0])-SPECKLE_SQUARE) for i in range((len(intensityBoi))-SPECKLE_SQUARE) ]
+# to do:
+    # define a for loop that goes through 7x7 pieces of the image
+    # for each of these, compute the speckle contrast; compare it to the full
+    # image's speckle contrast
+    # using this comparison, create a new matrix that is composed of values
+    # based on how "blurry" the image is; higher contrast than average means
+    # less blurry, make it white (more stddev means more light bounced off)
+for r in range(len(intensityBoi) - SPECKLE_SQUARE):
+    for c in range(len(intensityBoi[0]) - SPECKLE_SQUARE):
+        x1 = r; x2 = r+6;
+        y1 = c; y2 = c+6
+        selection = pArr[x1:x2, y1:y2]
+        s_dev = np.std(selection)
+        s_meanInt = np.mean(selection)
+        s_speckle_contrast = s_dev / s_meanInt
+        contrast_array[r][c] = w_speckle_contrast - s_speckle_contrast
+
+plt.imshow(contrast_array, 'gray')
+
 
 #%% CALCULATE CROSS-CORRELATION
 
@@ -195,6 +233,16 @@ plt.figtext(0.35, 0.7,  a_statement)
 plt.figtext(0.35, 0.75, x0_statement)
 plt.figtext(0.35, 0.8,  sigma_statement)
 plt.figtext(0.35, 0.85, b_statement)
+
+
+
+
+
+
+
+
+
+
 
 
 
