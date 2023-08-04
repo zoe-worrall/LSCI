@@ -34,9 +34,8 @@ import matplotlib.gridspec as gridspec
 SIZE = 2000
 NUM_EXPOSURES = 0
 
-image = plt.imread("/Users/zworrall/Downloads/smallest_ap.bmp", 0)
+image = plt.imread("/Users/zworrall/Desktop/coding/august_4/speckle3x_lowExpo_2000.bmp", 0)
 plt.set_cmap("gray")
-
 intensityBoi = image
 intensityBoi = np.asarray(intensityBoi)
 
@@ -44,24 +43,28 @@ intensityBoi = np.asarray(intensityBoi)
 
 fig, ax = plt.subplots(ncols=1, nrows=1)
 
-N_bins = 100
+print(intensityBoi)
 int_hist, int_bin_edges = np.histogram(intensityBoi, bins=N_bins)
-ax.plot(int_bin_edges[:-1], int_hist)
+
+
+
+ax.plot(int_bin_edges[:-1], int_hist, 'bo')
 ax.set_title("Intensity Histogram of Laser Speckle", fontsize = 8)
+ax.set_xlim(0, 255)
 
 #%% GRAPH FFT OF THE CONTRAST PATTERN
 
 fig2, ax2 = plt.subplots(ncols=2, nrows=1, figsize=(15, 6))
 
-wd = int(len(intensityBoi[0])/5)
-ht = int(len(intensityBoi)/5)
+wd = int(len(intensityBoi[0]))
+ht = int(len(intensityBoi))
 print(wd, " ", ht)
 
 photo_array = [ [0]*wd for i in range(ht)]
 for r in range(ht):
     for c in range(wd):
-        row = int(r+2.5 * ht)
-        col = int(c+2.2 * wd)
+        row = int(r)
+        col = int(c)
         px = intensityBoi[row][col]
         photo_array[r][c] = px# (px[0] + px[1] + px[2])/3
 
@@ -71,12 +74,11 @@ _min, _max = np.amin(photo_array), np.amax(photo_array)
 
 
 # GRAPH FIRST PLOT: ORIGINAL LSCI PATTERN
-
 ax2 = plt.subplot(121)
 # Calculate Fourier transform of grating
 plt.imshow(photo_array, vmin = _min, vmax = _max)
 x = np.arange(-500, 501, 1)
-plt.title("LSCI Pattern - Small Aperture")
+plt.title("LSCI Pattern")
 plt.xlabel("x")
 plt.ylabel("y")
 
@@ -119,8 +121,11 @@ print(w_speckle_contrast)
 
 SPECKLE_SQUARE = 7
 
-pArr = np.asarray(intensityBoi)
-contrast_array = [ [0]*(len(intensityBoi[0])-SPECKLE_SQUARE) for i in range((len(intensityBoi))-SPECKLE_SQUARE) ]
+pArr = np.asarray(photo_array)
+contrast_array = [ [0]*(len(photo_array[0])-SPECKLE_SQUARE) for i in range((len(photo_array))-SPECKLE_SQUARE) ]
+
+scale = [ [1]*(len(photo_array[0])) for i in range((len(photo_array))) ]
+# pArr = pArr + scale
 # to do:
     # define a for loop that goes through 7x7 pieces of the image
     # for each of these, compute the speckle contrast; compare it to the full
@@ -128,30 +133,56 @@ contrast_array = [ [0]*(len(intensityBoi[0])-SPECKLE_SQUARE) for i in range((len
     # using this comparison, create a new matrix that is composed of values
     # based on how "blurry" the image is; higher contrast than average means
     # less blurry, make it white (more stddev means more light bounced off)
-for r in range(len(intensityBoi) - SPECKLE_SQUARE):
-    for c in range(len(intensityBoi[0]) - SPECKLE_SQUARE):
-        x1 = r; x2 = r+6;
-        y1 = c; y2 = c+6
+for r in range(len(photo_array) - SPECKLE_SQUARE):
+    for c in range(len(photo_array[0]) - SPECKLE_SQUARE):
+        x1 = r; x2 = r+SPECKLE_SQUARE-1
+        y1 = c; y2 = c+SPECKLE_SQUARE-1
         selection = pArr[x1:x2, y1:y2]
         s_dev = np.std(selection)
         s_meanInt = np.mean(selection)
-        s_speckle_contrast = s_dev / s_meanInt
-        contrast_array[r][c] = w_speckle_contrast - s_speckle_contrast
+        # just to avoid any technical difficulties, 
+        # since it seems like s_meanInt can sometimes be 0:
+        if (s_meanInt == 0):
+            contrast_array[r][c] = -2
+        else:
+            s_speckle_contrast = s_dev / s_meanInt
+            contrast_array[r][c] = -s_speckle_contrast
 
-plt.imshow(contrast_array, 'gray')
 
+#%% SHOW ORIGINAL IMAGE 
 
-#%% CALCULATE CROSS-CORRELATION
+plt.imshow(image)
 
-# calculates cross correlation of the intensity of the speckle ("intensityBoi")
-import scipy.signal as si
+#%% SHOW THE "CONTRAST IMAGE"
 
-ift = fftshift(ft_new)
-ift = ifft2(ift)
-ift = ifftshift(ift)
+im = plt.imshow(contrast_array, 'gray')
+plt.colorbar(im)
 
-org_cCorr = si.correlate2d(np.abs(ift), np.abs(ift), boundary='wrap', mode='same')
+# To save the image to desktop, uncomment the following lines
+# npCont = np.asarray(contrast_array)
+# npCont = 255 * npCont
+# im = Image.fromarray(npCont.astype(np.uint8))
+# im.save('/Users/zworrall/Desktop/august_3/speck3x/speck3x_speckleContrast.bmp')
 
+#%% CALCULATE CROSS-CORRELATION USING THEOREM
+
+matrix = ft_new
+conj_m = np.conjugate(ft_new)
+mult = conj_m * matrix
+
+cross_corr = fft2(mult)
+cross_corr = fftshift(cross_corr)
+center_sec = cross_corr[950:1000, 1275:1350]
+
+import matplotlib.patches as patches
+
+im2 = plt.imshow(np.log(np.abs(center_sec)), 'jet') #norm=colors.LogNorm())
+plt.colorbar(im2)
+
+#%%
+
+half_corrX = int ( len(cross_corr) / 2 - 1 )
+plt.plot(np.log(np.abs(cross_corr[half_corrX])))
 
 #%% GRAPH THE CROSS-CORRELATION OF THE IMAGE
 
@@ -159,11 +190,10 @@ plt.title("Cross-Correlation of Small-Aperture Speckle")
 plt.xlabel("x-shift amount")
 plt.ylabel("y-shift amount")
 
-halfx = int(len(org_cCorr)/2)-1
-org_GaussianPoints = org_cCorr[halfx, :]
-print(org_GaussianPoints)
-plt.imshow(np.abs(org_cCorr), cmap='jet')
-plt.plot(range(len(org_cCorr[0])), [halfx]*len(org_cCorr[0]), linewidth=1)
+cross_gauss = np.log(np.abs(cross_corr[half_corrX, :]))
+print(cross_gauss)
+plt.imshow(np.abs(cross_corr), cmap='jet')
+plt.plot(range(len(cross_corr[0])), [half_corrX]*len(cross_corr[0]), linewidth=1)
 plt.show()
 
 #%% GAUSSIAN FUNCTIONS
@@ -192,25 +222,26 @@ def findFitGaus(oneD_section):
     return [x, y, popt, pcov]
 
 
-
 #%% COMPUTE GAUSSIAN FIT FOR BEFORE AND AFTER + GRAPH
 
 # shorten so that the gaussian is easier to see
 MAXSIZE = int(SIZE/5 * 3.5)
 MINSIZE = int(SIZE/5 * 1.5)
 
-# take the center line along the middle of the y axis to see if gaussian
-halfx = int(len(org_cCorr)/2) -1
-org_GaussianPoints = org_cCorr[halfx, :]
-# absOrg_GaussianPoints = np.abs(org_GaussianPoints)
-
 fig5, ax5 = plt.subplots(1, 1, figsize=(20, 15))
 
-org_fit = findFitGaus(org_GaussianPoints)
+# adjust cross_gauss if there's somethign weird happening around the curve
+
+cross_gauss = cross_gauss[1100:1500]
+
+org_fit = findFitGaus(cross_gauss)
+
+#__________________________________________________________________#
 
 ## GRAPHING GAUSSIAN FIT
+
 # correlation points graphed
-plt.plot(np.arange(len(org_GaussianPoints)), org_GaussianPoints, 'b+:', label='data')
+plt.plot(np.arange(len(cross_gauss)), cross_gauss, 'b+:', label='data')
 
 # gaussian fit points graphed
 plt.plot(org_fit[0], gaussian(org_fit[0], *(org_fit[2])), 'r-', label='fit')
@@ -225,7 +256,7 @@ plt.ylabel('magnitude')
 # values to print on the graph
 a_statement     = "a value: ", round(a, 2)
 x0_statement    = "x0 value: ", round(x0, 2)
-sigma_statement = "sigma value: ", round(sigma, 2)
+sigma_statement = "sigma value: ", np.abs(round(sigma, 2))
 b_statement     = "b value: ", round(b, 2)
 
 # print the values on the graph
@@ -233,10 +264,20 @@ plt.figtext(0.35, 0.7,  a_statement)
 plt.figtext(0.35, 0.75, x0_statement)
 plt.figtext(0.35, 0.8,  sigma_statement)
 plt.figtext(0.35, 0.85, b_statement)
+plt.colorbar()
 
 
 
+#%% CALCULATE CROSS-CORRELATION with Scipy (O[n^2] time, don't recommend using)
 
+# calculates cross correlation of the intensity of the speckle ("intensityBoi")
+import scipy.signal as si
+
+ift = fftshift(ft_new)
+ift = ifft2(ift)
+ift = ifftshift(ift)
+
+org_cCorr = si.correlate2d(np.abs(ft_new), np.abs(ft_new), boundary='wrap', mode='same')
 
 
 
