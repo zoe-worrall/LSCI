@@ -3,10 +3,27 @@
 """
 Created on Thu Jul 27 09:26:52 2023
 
-creates an FFT, phase diagram plots, etc. for an image that the user input
+Most recent update: Friday, August 4, 2023
+
+Using an input Laser Speckle Image, plots the following:
+    * an intensity histogram of pixels (monochrome and bmp file only)
+    * the original image versus is 2D-Fourier transform
+    * the speckle contrast of the original image
+    * a cross correlation of the matrix with itself
+    * the gaussian fit of the cross-section: cuts off the sides to prevent
+        the slopes outside of the gaussian from influencing the fit
+    
 
 @author: zworrall
 """
+
+# to save images directly to your desktop:
+    
+# numpy_array = np.asarray(name_of_image_array)
+# numpy_array = 255 * numpy_array       ## does scaling for conversion to uint
+# im = Image.fromarray(npCont.astype(np.uint8))
+# im.save('PATH-TO-SAVE-FOLDER/NAME-OF-IMAGE-SAVED.bmp')
+
 
 #%% IMPORTING NECESSARY FILES
 
@@ -29,15 +46,16 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
 
-#%% DECLARE GLOBAL VARIABLES AND METHODS TO BE USED
+#%% SET UP IMAGE AND INTENSITY MATRIX
 
-SIZE = 2000
-NUM_EXPOSURES = 0
-
+# import only monochrome (black and white) bmp files: files with RGB tuples
+#   for individual pixels need additional processing to work in this code
 image = plt.imread("PATH-TO-IMAGE.bmp", 0)
+plt.imshow(image)
 plt.set_cmap("gray")
-intensityBoi = image
-intensityBoi = np.asarray(intensityBoi)
+
+# convert into numpy array for future work
+intensityBoi = np.asarray(image)
 
 #%% GRAPH INTENSITY (PDF -- PROBABILITY DENSITY FUNCTION)
 
@@ -48,7 +66,8 @@ int_hist, int_bin_edges = np.histogram(intensityBoi, bins=N_bins, range=[0, 255]
 
 ax.plot(int_bin_edges[:-1], int_hist, 'b-')
 ax.set_title("Intensity Histogram of Laser Speckle", fontsize = 8)
-ax.set_xlim(0, 2)
+ax.set_xlim(0, 255)
+
 
 #%% GRAPH FFT OF THE CONTRAST PATTERN
 
@@ -128,6 +147,7 @@ scale = [ [1]*(len(photo_array[0])) for i in range((len(photo_array))) ]
     # define a for loop that goes through 7x7 pieces of the image
     # for each of these, compute the speckle contrast; compare it to the full
     # image's speckle contrast
+    
     # using this comparison, create a new matrix that is composed of values
     # based on how "blurry" the image is; higher contrast than average means
     # less blurry, make it white (more stddev means more light bounced off)
@@ -147,21 +167,6 @@ for r in range(len(photo_array) - SPECKLE_SQUARE):
             contrast_array[r][c] = -s_speckle_contrast
 
 
-#%% SHOW ORIGINAL IMAGE 
-
-plt.imshow(image)
-
-#%% SHOW THE "CONTRAST IMAGE"
-
-im = plt.imshow(contrast_array, 'gray')
-plt.colorbar(im)
-
-# To save the image to desktop, uncomment the following lines
-# npCont = np.asarray(contrast_array)
-# npCont = 255 * npCont
-# im = Image.fromarray(npCont.astype(np.uint8))
-# im.save('/Users/zworrall/Desktop/august_3/speck3x/speck3x_speckleContrast.bmp')
-
 #%% CALCULATE CROSS-CORRELATION USING THEOREM
 
 matrix = ft_new
@@ -170,17 +175,18 @@ mult = conj_m * matrix
 
 cross_corr = fft2(mult)
 cross_corr = fftshift(cross_corr)
-center_sec = cross_corr[950:1000, 1275:1350]
 
 import matplotlib.patches as patches
 
-im2 = plt.imshow(np.log(np.abs(center_sec)), 'jet') #norm=colors.LogNorm())
+# plot cross correlation of matrix with itself
+im2 = plt.imshow(np.log(np.abs(cross_corr)), 'jet') #norm=colors.LogNorm())
 plt.colorbar(im2)
+plt.show()
 
-#%%
-
+# values along center axis of cross-correlated matrix
 half_corrX = int ( len(cross_corr) / 2 - 1 )
 plt.plot(np.log(np.abs(cross_corr[half_corrX])))
+plt.show()
 
 #%% GRAPH THE CROSS-CORRELATION OF THE IMAGE
 
@@ -234,10 +240,9 @@ cross_gauss = cross_gauss[1100:1500]
 
 org_fit = findFitGaus(cross_gauss)
 
-#__________________________________________________________________#
+#/\/\/\/\/\//\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\//\/\/\/\//\/\/\/\*
 
 ## GRAPHING GAUSSIAN FIT
-
 # correlation points graphed
 plt.plot(np.arange(len(cross_gauss)), cross_gauss, 'b+:', label='data')
 
