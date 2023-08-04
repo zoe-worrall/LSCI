@@ -34,7 +34,7 @@ import matplotlib.gridspec as gridspec
 SIZE = 2000
 NUM_EXPOSURES = 0
 
-image = plt.imread("/Users/zworrall/Desktop/coding/august_4/speckle3x_lowExpo_2000.bmp", 0)
+image = plt.imread("PATH-TO-IMAGE.bmp", 0)
 plt.set_cmap("gray")
 intensityBoi = image
 intensityBoi = np.asarray(intensityBoi)
@@ -43,14 +43,12 @@ intensityBoi = np.asarray(intensityBoi)
 
 fig, ax = plt.subplots(ncols=1, nrows=1)
 
-print(intensityBoi)
-int_hist, int_bin_edges = np.histogram(intensityBoi, bins=N_bins)
+N_bins = 255
+int_hist, int_bin_edges = np.histogram(intensityBoi, bins=N_bins, range=[0, 255])
 
-
-
-ax.plot(int_bin_edges[:-1], int_hist, 'bo')
+ax.plot(int_bin_edges[:-1], int_hist, 'b-')
 ax.set_title("Intensity Histogram of Laser Speckle", fontsize = 8)
-ax.set_xlim(0, 255)
+ax.set_xlim(0, 2)
 
 #%% GRAPH FFT OF THE CONTRAST PATTERN
 
