@@ -31,7 +31,6 @@ from array import *
 import numpy as np
 import numpy.fft
 from PIL import Image
-#from scipy.stats import t
 import scipy.stats
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -41,7 +40,6 @@ import scipy.fftpack
 from scipy.fftpack import fft
 from scipy.fftpack import fft2, ifft2, fftshift, ifftshift
 import random
-
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
@@ -50,19 +48,19 @@ import matplotlib.gridspec as gridspec
 
 # import only monochrome (black and white) bmp files: files with RGB tuples
 #   for individual pixels need additional processing to work in this code
-image = plt.imread("PATH-TO-IMAGE.bmp", 0)
+image = plt.imread("/Users/zworrall/Desktop/coding/august_7/aug7_still_8000.bmp", 0)
 plt.imshow(image)
 plt.set_cmap("gray")
 
 # convert into numpy array for future work
-intensityBoi = np.asarray(image)
+instensity = np.asarray(image)
 
 #%% GRAPH INTENSITY (PDF -- PROBABILITY DENSITY FUNCTION)
 
 fig, ax = plt.subplots(ncols=1, nrows=1)
 
 N_bins = 255
-int_hist, int_bin_edges = np.histogram(intensityBoi, bins=N_bins, range=[0, 255])
+int_hist, int_bin_edges = np.histogram(instensity, bins=N_bins, range=[0, 255])
 
 ax.plot(int_bin_edges[:-1], int_hist, 'b-')
 ax.set_title("Intensity Histogram of Laser Speckle", fontsize = 8)
@@ -73,8 +71,8 @@ ax.set_xlim(0, 255)
 
 fig2, ax2 = plt.subplots(ncols=2, nrows=1, figsize=(15, 6))
 
-wd = int(len(intensityBoi[0]))
-ht = int(len(intensityBoi))
+wd = int(len(instensity[0]))
+ht = int(len(instensity))
 print(wd, " ", ht)
 
 photo_array = [ [0]*wd for i in range(ht)]
@@ -82,7 +80,7 @@ for r in range(ht):
     for c in range(wd):
         row = int(r)
         col = int(c)
-        px = intensityBoi[row][col]
+        px = instensity[row][col]
         photo_array[r][c] = px# (px[0] + px[1] + px[2])/3
 
 # taken from https://stackoverflow.com/questions/32766162/set-two-matplotlib-imshow-plots-to-have-the-same-color-map-scale
@@ -169,6 +167,9 @@ for r in range(len(photo_array) - SPECKLE_SQUARE):
 
 #%% CALCULATE CROSS-CORRELATION USING THEOREM
 
+# although scipy does have a 2d cross-correlation function (correlate2d),
+#   it takes O(n^2) time compared to this code's O(n * log[n]) time
+
 matrix = ft_new
 conj_m = np.conjugate(ft_new)
 mult = conj_m * matrix
@@ -226,23 +227,20 @@ def findFitGaus(oneD_section):
     return [x, y, popt, pcov]
 
 
-#%% COMPUTE GAUSSIAN FIT FOR BEFORE AND AFTER + GRAPH
+#%% COMPUTE GAUSSIAN FIT FOR BEFORE AND AFTER
 
 # shorten so that the gaussian is easier to see
-MAXSIZE = int(SIZE/5 * 3.5)
-MINSIZE = int(SIZE/5 * 1.5)
 
 fig5, ax5 = plt.subplots(1, 1, figsize=(20, 15))
 
 # adjust cross_gauss if there's somethign weird happening around the curve
 
-cross_gauss = cross_gauss[1100:1500]
+cross_gauss = cross_gauss[1200:1400]
 
 org_fit = findFitGaus(cross_gauss)
 
-#/\/\/\/\/\//\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\//\/\/\/\//\/\/\/\*
+#%% GRAPH GAUSSIAN FIT
 
-## GRAPHING GAUSSIAN FIT
 # correlation points graphed
 plt.plot(np.arange(len(cross_gauss)), cross_gauss, 'b+:', label='data')
 
@@ -263,24 +261,11 @@ sigma_statement = "sigma value: ", np.abs(round(sigma, 2))
 b_statement     = "b value: ", round(b, 2)
 
 # print the values on the graph
-plt.figtext(0.35, 0.7,  a_statement)
-plt.figtext(0.35, 0.75, x0_statement)
-plt.figtext(0.35, 0.8,  sigma_statement)
-plt.figtext(0.35, 0.85, b_statement)
-plt.colorbar()
+plt.figtext(0.15, 0.65,  a_statement, fontsize=12)
+plt.figtext(0.15, 0.7, x0_statement, fontsize=12)
+plt.figtext(0.15, 0.75,  sigma_statement, fontsize=12)
+plt.figtext(0.15, 0.8, b_statement, fontsize=12)
 
-
-
-#%% CALCULATE CROSS-CORRELATION with Scipy (O[n^2] time, don't recommend using)
-
-# calculates cross correlation of the intensity of the speckle ("intensityBoi")
-import scipy.signal as si
-
-ift = fftshift(ft_new)
-ift = ifft2(ift)
-ift = ifftshift(ift)
-
-org_cCorr = si.correlate2d(np.abs(ft_new), np.abs(ft_new), boundary='wrap', mode='same')
 
 
 
