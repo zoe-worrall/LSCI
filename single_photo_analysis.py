@@ -48,7 +48,7 @@ import matplotlib.gridspec as gridspec
 
 # import only monochrome (black and white) bmp files: files with RGB tuples
 #   for individual pixels need additional processing to work in this code
-image = plt.imread("/Users/zworrall/Desktop/coding/august_7/aug7_still_8000.bmp", 0)
+image = plt.imread("/Users/zworrall/Desktop/coding/august_10/880_10_1.bmp", 0)
 plt.imshow(image)
 plt.set_cmap("gray")
 
@@ -127,43 +127,68 @@ plt.show()
 
 #%% CALCULATE SPECKLE CONTRAST
 
-window = photo_array[:][:]
-
-w_dev = np.std(window)
-w_meanInt = np.mean(window)
-w_speckle_contrast = w_dev / w_meanInt
-print(w_speckle_contrast)
-
-SPECKLE_SQUARE = 7
-
-pArr = np.asarray(photo_array)
-contrast_array = [ [0]*(len(photo_array[0])-SPECKLE_SQUARE) for i in range((len(photo_array))-SPECKLE_SQUARE) ]
-
-scale = [ [1]*(len(photo_array[0])) for i in range((len(photo_array))) ]
-# pArr = pArr + scale
-# to do:
-    # define a for loop that goes through 7x7 pieces of the image
-    # for each of these, compute the speckle contrast; compare it to the full
-    # image's speckle contrast
+# a method that returns a tuple;
+    # first value is the average speckle contrast of the image
+    # second value is the matrix passed through a speckle contrast algorithm
+def calcSpeckleContrast(photo):
     
-    # using this comparison, create a new matrix that is composed of values
-    # based on how "blurry" the image is; higher contrast than average means
-    # less blurry, make it white (more stddev means more light bounced off)
-for r in range(len(photo_array) - SPECKLE_SQUARE):
-    for c in range(len(photo_array[0]) - SPECKLE_SQUARE):
-        x1 = r; x2 = r+SPECKLE_SQUARE-1
-        y1 = c; y2 = c+SPECKLE_SQUARE-1
-        selection = pArr[x1:x2, y1:y2]
-        s_dev = np.std(selection)
-        s_meanInt = np.mean(selection)
-        # just to avoid any technical difficulties, 
-        # since it seems like s_meanInt can sometimes be 0:
-        if (s_meanInt == 0):
-            contrast_array[r][c] = -2
-        else:
-            s_speckle_contrast = s_dev / s_meanInt
-            contrast_array[r][c] = -s_speckle_contrast
+    window = photo[:][:]
+    w_dev = np.std(window)
+    w_meanInt = np.mean(window)
+    w_speckle_contrast = w_dev / w_meanInt 
+    
+    # the selection of SQUARE x SQUARE pixels where speckle will be calculated
+    SQUARE = 7
+    
+    # convert photo into an np array
+    pArr = np.asarray(photo)
+    
+    # the speckle contrast array that will be returned
+    contrast_array = [ [0]*(len(pArr[0])-SQUARE) for i in range((len(pArr))-SQUARE) ]
+    conMin = np.inf;
+    
+    # The Loop Does the Following:
+    # goes through 7x7 selections of the image
+    # computes the speckle contrast for this region
+    # using this comparison, create a new matrix with values whose magnitude
+        # decreases depending on how "blurry" the selection is
+    for r in range(len(pArr) - SQUARE):
+        for c in range(len(pArr[0]) - SQUARE):
+            x1 = r; x2 = r+SQUARE-1
+            y1 = c; y2 = c+SQUARE-1
+            selection = pArr[x1:x2, y1:y2]
+            
+            s_dev = np.std(selection)
+            s_meanInt = np.mean(selection)
+            
+            # to cut out values outside of the speckle caught on camera
+            if (s_meanInt <= 0.1 and s_dev <= 0.1):
+                contrast_array[r][c] = np.NaN
+            else:
+                s_speckle_contrast = s_dev / s_meanInt
+                
+                if s_speckle_contrast < conMin and s_speckle_contrast != 0:
+                    conMin = s_speckle_contrast
+                    
+                contrast_array[r][c] = s_speckle_contrast
+    
+    conArr = np.asarray(contrast_array)
+    conArr[conArr == 0] = conMin
+    
+    return (w_speckle_contrast, contrast_array)
 
+
+#%%
+
+(cont, contrast_array) = calcSpeckleContrast(photo_array)
+
+#%%
+
+import matplotlib.colors as colors
+minCon = np.nanmin(contrast_array)
+maxCon = np.nanmax(contrast_array)
+im = plt.imshow(contrast_array,'jet', norm=colors.LogNorm(vmin=minCon, vmax=maxCon))
+plt.colorbar(im)
 
 #%% CALCULATE CROSS-CORRELATION USING THEOREM
 
@@ -229,17 +254,15 @@ def findFitGaus(oneD_section):
 
 #%% COMPUTE GAUSSIAN FIT FOR BEFORE AND AFTER
 
-# shorten so that the gaussian is easier to see
-
-fig5, ax5 = plt.subplots(1, 1, figsize=(20, 15))
-
 # adjust cross_gauss if there's somethign weird happening around the curve
 
-cross_gauss = cross_gauss[1200:1400]
+cross_gauss = cross_gauss[1275:1325]
 
 org_fit = findFitGaus(cross_gauss)
 
 #%% GRAPH GAUSSIAN FIT
+
+fig5, ax5 = plt.subplots(1, 1, figsize=(20, 15))
 
 # correlation points graphed
 plt.plot(np.arange(len(cross_gauss)), cross_gauss, 'b+:', label='data')
